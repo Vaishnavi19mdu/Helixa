@@ -30,7 +30,7 @@ const WELLNESS_TIPS = [
   "You've helped people today. That matters. 💚",
 ];
 
-const SidebarWellnessBot = () => {
+const SidebarWellnessBot = ({ showToast, toastSyncing, offlineQueueCount }) => {
   const [messages, setMessages] = useState([
     { role: 'bot', text: "Hey Doc 🌿 How are you holding up?" }
   ]);
@@ -84,8 +84,6 @@ const SidebarWellnessBot = () => {
         <button onClick={send} className="w-7 h-7 bg-helixa-green rounded-lg flex items-center justify-center hover:bg-helixa-green/80 transition-colors flex-shrink-0">
           <Send size={11} className="text-white" />
         </button>
-      <SyncToast show={showToast} syncing={toastSyncing} count={offlineQueueCount} />
-      <HelixaBot shiftLeft={showChat || showNotifs} />
       </div>
     </div>
   );
@@ -304,7 +302,11 @@ export const MainLayout = ({ children, user, darkMode, toggleDarkMode }) => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-2 flex items-center gap-1.5">
                   <Heart size={11} className="text-helixa-green" /> Wellness
                 </p>
-                <SidebarWellnessBot />
+                <SidebarWellnessBot
+                  showToast={showToast}
+                  toastSyncing={toastSyncing}
+                  offlineQueueCount={offlineQueueCount}
+                />
               </div>
             </motion.div>
           )}
@@ -532,8 +534,8 @@ export const MainLayout = ({ children, user, darkMode, toggleDarkMode }) => {
             </>
           )}
         </AnimatePresence>
-      <SyncToast show={showToast} syncing={toastSyncing} count={offlineQueueCount} />
-      <HelixaBot shiftLeft={showChat || showNotifs} />
+        <SyncToast show={showToast} syncing={toastSyncing} count={offlineQueueCount} />
+        <HelixaBot shiftLeft={showChat || showNotifs} />
       </div>
     </div>
   );
