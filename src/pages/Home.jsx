@@ -104,7 +104,7 @@ export const Home = () => {
               </div>
             </motion.div>
 
-            {/* Right Side: Visual (AI & Medicine Theme) */}
+            {/* Right Side: Visual — isolate added to contain the -z-10 blur blobs */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -137,9 +137,7 @@ export const Home = () => {
                 </div>
               </div>
               
-              {/* Decorative Shapes */}
-              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-helixa-green/10 rounded-full blur-3xl -z-10"></div>
-              <div className="absolute -top-10 -right-10 w-60 h-60 bg-helixa-teal/5 rounded-full blur-3xl -z-10"></div>
+
             </motion.div>
           </div>
 
@@ -150,6 +148,37 @@ export const Home = () => {
             </svg>
           </div>
         </section>
+
+        {/* ── Health Facts Marquee ── */}
+        <div className="w-full bg-helixa-green overflow-hidden py-3 relative mt-18">
+          <div className="absolute left-0 top-0 h-full w-16 bg-gradient-to-r from-helixa-green to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 h-full w-16 bg-gradient-to-l from-helixa-green to-transparent z-10 pointer-events-none" />
+          <div className="flex whitespace-nowrap" style={{ animation: 'marquee 35s linear infinite' }}>
+            {[0, 1].map((copy) => (
+              <div key={copy} className="flex items-center gap-10 pr-10 flex-shrink-0">
+                {[
+                  '💧 Drink at least 8 glasses of water a day to stay hydrated',
+                  '🌿 A 30-minute walk daily can significantly improve your heart health',
+                  '😴 Adults need 7–9 hours of sleep for optimal brain and body function',
+                  '🥦 Eating 5 servings of fruits and vegetables daily boosts immunity',
+                  '🧘 Just 10 minutes of deep breathing can reduce stress and anxiety',
+                  '☀️ Get 15 minutes of sunlight daily for natural Vitamin D',
+                ].map((fact, i) => (
+                  <span key={i} className="flex items-center gap-3 text-white text-sm font-bold tracking-wide flex-shrink-0">
+                    <span className="w-1.5 h-1.5 bg-white/50 rounded-full flex-shrink-0" />
+                    {fact}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+          <style>{`
+            @keyframes marquee {
+              0%   { transform: translateX(0); }
+              100% { transform: translateX(-50%); }
+            }
+          `}</style>
+        </div>
 
         {/* Health Journey (Interactive Path) */}
         <HealthJourney />

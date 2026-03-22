@@ -84,7 +84,7 @@ const JourneyNode = ({ icon: Icon, label, description, x, y, color, delay }) => 
 
 const LandscapeElements = () => (
   <div className="absolute inset-0 pointer-events-none overflow-hidden">
-    {/* Layered Background Hills - More Depth */}
+    {/* Layered Background Hills */}
     <div className="absolute bottom-0 w-full h-full">
       <svg className="absolute bottom-0 w-full h-[70%] opacity-[0.03]" viewBox="0 0 1440 320" preserveAspectRatio="none">
         <path fill="#007099" d="M0,128L120,144C240,160,480,192,720,192C960,192,1200,160,1320,144L1440,128L1440,320L1320,320C1200,320,960,320,720,320C480,320,240,320,120,320L0,320Z"></path>
@@ -97,19 +97,9 @@ const LandscapeElements = () => (
       </svg>
     </div>
 
-    {/* Floating Soft Blobs (Clouds/Mist) */}
-    <motion.div 
-      animate={{ x: [0, 30, 0], y: [0, 15, 0] }}
-      transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-      className="absolute top-10 left-[5%] w-72 h-72 bg-white/40 rounded-full blur-[120px]" 
-    />
-    <motion.div 
-      animate={{ x: [0, -30, 0], y: [0, -20, 0] }}
-      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-      className="absolute top-32 right-[10%] w-96 h-96 bg-helixa-green/10 rounded-full blur-[140px]" 
-    />
 
-    {/* Plant/Bush Clusters near path - More variety */}
+
+    {/* Plant/Bush Clusters near path */}
     {[
       { left: '12%', bottom: '42%', size: 'w-10 h-10', delay: 0 },
       { left: '38%', bottom: '32%', size: 'w-14 h-14', delay: 0.4 },
@@ -205,7 +195,7 @@ export const HealthJourney = () => {
               transition={{ duration: 2, ease: "easeInOut" }}
             />
 
-            {/* Main Trail Path - Irregular & Gradient */}
+            {/* Main Trail Path */}
             <motion.path
               d="M 100 300 C 200 200 350 400 500 300 S 750 100 900 300"
               fill="none"
@@ -221,7 +211,7 @@ export const HealthJourney = () => {
             />
           </svg>
 
-          {/* Nodes Anchored DIRECTLY on the Path */}
+          {/* Nodes */}
           <JourneyNode 
             x={10} y={60} 
             icon={Search} 
