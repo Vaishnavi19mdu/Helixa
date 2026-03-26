@@ -17,19 +17,8 @@ import { Settings }   from './pages/Settings';
 import { MainLayout } from './layouts/MainLayout';
 import { Appointments } from './pages/Appointments';
 import { Profile } from './pages/Profile';
-
-// ── Placeholder for unbuilt pages ─────────────────────────────────────────────
-const PlaceholderPage = ({ title, user, darkMode, toggleDarkMode }) => (
-  <MainLayout user={user} darkMode={darkMode} toggleDarkMode={toggleDarkMode}>
-    <div className="flex flex-col items-center justify-center h-64 gap-4">
-      <div className="w-16 h-16 rounded-2xl bg-helixa-green/10 flex items-center justify-center">
-        <span className="text-3xl">🚧</span>
-      </div>
-      <h2 className="text-2xl font-black text-helixa-teal">{title}</h2>
-      <p className="text-sm text-helixa-teal/50 font-bold">Coming soon</p>
-    </div>
-  </MainLayout>
-);
+import { Patients } from './pages/Patients';
+import { AdminPanel } from './pages/AdminPanel';
 
 // ── Loading screen while Firebase checks auth ─────────────────────────────────
 const AuthLoading = () => (
@@ -41,10 +30,20 @@ const AuthLoading = () => (
   </div>
 );
 
-// ── Protected route ───────────────────────────────────────────────────────────
+// ── Protected route (non-admin users only) ────────────────────────────────────
 const Protected = ({ user, authReady, children }) => {
   if (!authReady) return <AuthLoading />;
   if (!user) return <Navigate to="/login" replace />;
+  // Admins always go to /admin, never regular pages
+  if (user.role === 'admin') return <Navigate to="/admin" replace />;
+  return children;
+};
+
+// ── Admin-only route ──────────────────────────────────────────────────────────
+const AdminRoute = ({ user, authReady, children }) => {
+  if (!authReady) return <AuthLoading />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />;
   return children;
 };
 
@@ -57,7 +56,6 @@ function App() {
       : false
   );
 
-  // Sync dark mode class to <html>
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
@@ -68,7 +66,6 @@ function App() {
     localStorage.setItem('helixa-dark-mode', String(next));
   };
 
-  // Firebase auth persistence — restores session on refresh
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
@@ -88,11 +85,9 @@ function App() {
       }
       setAuthReady(true);
     });
-
     return () => unsub();
   }, []);
 
-  // Init offline sync listener once
   React.useEffect(() => { initOfflineSync(); }, []);
 
   const sharedProps = { user, darkMode, toggleDarkMode };
@@ -107,7 +102,14 @@ function App() {
         <Route path="/signup"      element={<Signup setUser={setUser} />} />
         <Route path="/role-select" element={<RoleSelect setUser={setUser} />} />
 
-        {/* ── Protected ── */}
+        {/* ── Admin only ── */}
+        <Route path="/admin" element={
+          <AdminRoute user={user} authReady={authReady}>
+            <AdminPanel {...sharedProps} />
+          </AdminRoute>
+        } />
+
+        {/* ── Protected (non-admin) ── */}
         <Route path="/dashboard" element={
           <Protected user={user} authReady={authReady}>
             <Dashboard {...sharedProps} />
@@ -125,7 +127,7 @@ function App() {
         } />
         <Route path="/settings" element={
           <Protected user={user} authReady={authReady}>
-            <Settings {...sharedProps} />
+            <Settings {...sharedProps} setUser={setUser} />
           </Protected>
         } />
         <Route path="/profile-setup" element={
@@ -140,7 +142,7 @@ function App() {
         } />
         <Route path="/patients" element={
           <Protected user={user} authReady={authReady}>
-            <PlaceholderPage title="Patient List" {...sharedProps} />
+            <Patients {...sharedProps} />
           </Protected>
         } />
 

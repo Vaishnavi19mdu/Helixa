@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
 import { Logo } from '../components/Logo';
-import { ArrowLeft, User, Stethoscope, Camera, MapPin, Phone, Award, Calendar, AlertCircle } from 'lucide-react';
+import { ArrowLeft, User, Stethoscope, Camera, AlertCircle, WifiOff } from 'lucide-react';
 import { api } from '../utils/api';
 import { HelixaBot } from '../components/HelixaBot';
 
@@ -14,6 +14,7 @@ export const Signup = ({ setUser }) => {
   const [role, setRole]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -26,14 +27,26 @@ export const Signup = ({ setUser }) => {
   });
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const goOffline = () => setIsOffline(true);
+    const goOnline  = () => setIsOffline(false);
+    window.addEventListener('offline', goOffline);
+    window.addEventListener('online',  goOnline);
+    return () => {
+      window.removeEventListener('offline', goOffline);
+      window.removeEventListener('online',  goOnline);
+    };
+  }, []);
+
   const handleSignupSubmit = (e) => {
     e.preventDefault();
-    if (!role) return;
+    if (!role || isOffline) return;
     setStep('profile');
   };
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
+    if (isOffline) return;
     setLoading(true);
     setError(null);
 
@@ -57,6 +70,13 @@ export const Signup = ({ setUser }) => {
     }
   };
 
+  const OfflineBanner = () => (
+    <div className="flex items-center gap-3 p-4 mb-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-amber-600 dark:text-amber-400 text-sm font-bold">
+      <WifiOff size={18} className="flex-shrink-0" />
+      You're offline. Please connect to the internet to create an account.
+    </div>
+  );
+
   const renderSignup = () => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -77,6 +97,8 @@ export const Signup = ({ setUser }) => {
           <p className="text-[var(--text-secondary)] mt-2 font-medium">Join the future of healthcare</p>
         </div>
 
+        {isOffline && <OfflineBanner />}
+
         <form onSubmit={handleSignupSubmit} className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
             <Input
@@ -85,6 +107,7 @@ export const Signup = ({ setUser }) => {
               value={formData.firstName}
               onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               required
+              disabled={isOffline}
             />
             <Input
               label="Last Name"
@@ -92,6 +115,7 @@ export const Signup = ({ setUser }) => {
               value={formData.lastName}
               onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               required
+              disabled={isOffline}
             />
           </div>
           <Input
@@ -101,6 +125,7 @@ export const Signup = ({ setUser }) => {
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required
+            disabled={isOffline}
           />
           <Input
             label="Password"
@@ -109,21 +134,22 @@ export const Signup = ({ setUser }) => {
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required
+            disabled={isOffline}
           />
 
           <div className="space-y-3">
             <label className="text-[10px] font-bold text-helixa-teal/60 uppercase tracking-widest ml-1">I am a...</label>
             <div className="grid grid-cols-2 gap-4">
               <div
-                onClick={() => setRole('patient')}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${role === 'patient' ? 'border-helixa-green bg-helixa-green/5' : 'border-[var(--border-color)] hover:border-helixa-green/30'}`}
+                onClick={() => !isOffline && setRole('patient')}
+                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isOffline ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${role === 'patient' ? 'border-helixa-green bg-helixa-green/5' : 'border-[var(--border-color)] hover:border-helixa-green/30'}`}
               >
                 <User size={24} className={role === 'patient' ? 'text-helixa-green' : 'text-helixa-teal/40'} />
                 <span className={`text-sm font-bold ${role === 'patient' ? 'text-helixa-teal' : 'text-helixa-teal/60'}`}>Patient</span>
               </div>
               <div
-                onClick={() => setRole('doctor')}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col items-center gap-2 ${role === 'doctor' ? 'border-helixa-teal bg-helixa-teal/5' : 'border-[var(--border-color)] hover:border-helixa-teal/30'}`}
+                onClick={() => !isOffline && setRole('doctor')}
+                className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${isOffline ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${role === 'doctor' ? 'border-helixa-teal bg-helixa-teal/5' : 'border-[var(--border-color)] hover:border-helixa-teal/30'}`}
               >
                 <Stethoscope size={24} className={role === 'doctor' ? 'text-helixa-teal' : 'text-helixa-teal/40'} />
                 <span className={`text-sm font-bold ${role === 'doctor' ? 'text-helixa-teal' : 'text-helixa-teal/60'}`}>Doctor</span>
@@ -131,8 +157,8 @@ export const Signup = ({ setUser }) => {
             </div>
           </div>
 
-          <Button type="submit" className="w-full py-4 text-lg" disabled={!role}>
-            Continue
+          <Button type="submit" className="w-full py-4 text-lg" disabled={!role || isOffline}>
+            {isOffline ? 'No Connection' : 'Continue'}
           </Button>
         </form>
 
@@ -165,7 +191,9 @@ export const Signup = ({ setUser }) => {
           </div>
         </div>
 
-        {error && (
+        {isOffline && <OfflineBanner />}
+
+        {error && !isOffline && (
           <div className="flex items-center gap-3 p-4 mb-6 bg-helixa-alert/10 border border-helixa-alert/20 rounded-2xl text-helixa-alert text-sm font-bold">
             <AlertCircle size={18} className="flex-shrink-0" />
             {error}
@@ -179,12 +207,14 @@ export const Signup = ({ setUser }) => {
               placeholder="+91 98765 43210"
               value={formData.profile.phone}
               onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, phone: e.target.value } })}
+              disabled={isOffline}
             />
             <Input
               label="Location"
               placeholder="Bengaluru, India"
               value={formData.profile.location}
               onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, location: e.target.value } })}
+              disabled={isOffline}
             />
           </div>
 
@@ -196,6 +226,7 @@ export const Signup = ({ setUser }) => {
                 value={formData.profile.specialty}
                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, specialty: e.target.value } })}
                 required
+                disabled={isOffline}
               />
               <Input
                 label="Years of Experience"
@@ -204,6 +235,7 @@ export const Signup = ({ setUser }) => {
                 value={formData.profile.experience}
                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, experience: e.target.value } })}
                 required
+                disabled={isOffline}
               />
             </div>
           ) : (
@@ -214,14 +246,16 @@ export const Signup = ({ setUser }) => {
                 value={formData.profile.dob}
                 onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, dob: e.target.value } })}
                 required
+                disabled={isOffline}
               />
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-helixa-teal/60 uppercase tracking-widest">Gender</label>
                 <select
-                  className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-xl px-4 py-3 focus:outline-none focus:border-helixa-green transition-colors text-helixa-teal font-medium appearance-none"
+                  className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-xl px-4 py-3 focus:outline-none focus:border-helixa-green transition-colors text-helixa-teal font-medium appearance-none disabled:opacity-40 disabled:cursor-not-allowed"
                   value={formData.profile.gender}
                   onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, gender: e.target.value } })}
                   required
+                  disabled={isOffline}
                 >
                   <option value="">Select Gender</option>
                   <option value="male">Male</option>
@@ -238,10 +272,11 @@ export const Signup = ({ setUser }) => {
               {role === 'doctor' ? 'Professional Bio' : 'Health Goals / Bio'}
             </label>
             <textarea
-              className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-xl px-4 py-3 focus:outline-none focus:border-helixa-green transition-colors text-helixa-teal font-medium min-h-[120px]"
+              className="w-full bg-[var(--bg-secondary)] border-2 border-[var(--border-color)] rounded-xl px-4 py-3 focus:outline-none focus:border-helixa-green transition-colors text-helixa-teal font-medium min-h-[120px] disabled:opacity-40 disabled:cursor-not-allowed"
               placeholder={role === 'doctor' ? 'Briefly describe your medical background...' : 'What are your primary health goals?'}
               value={formData.profile.bio}
               onChange={(e) => setFormData({ ...formData, profile: { ...formData.profile, bio: e.target.value } })}
+              disabled={isOffline}
             />
           </div>
 
@@ -249,8 +284,8 @@ export const Signup = ({ setUser }) => {
             <Button type="button" variant="outline" className="flex-1 py-4" onClick={() => setStep('signup')} disabled={loading}>
               Back
             </Button>
-            <Button type="submit" className="flex-[2] py-4 text-lg" disabled={loading}>
-              {loading ? 'Creating account...' : 'Finish Setup'}
+            <Button type="submit" className="flex-[2] py-4 text-lg" disabled={loading || isOffline}>
+              {loading ? 'Creating account...' : isOffline ? 'No Connection' : 'Finish Setup'}
             </Button>
           </div>
         </form>
@@ -264,7 +299,7 @@ export const Signup = ({ setUser }) => {
         {step === 'signup'  && renderSignup()}
         {step === 'profile' && renderProfileSetup()}
       </AnimatePresence>
-    <HelixaBot />
+      <HelixaBot />
     </div>
   );
 };

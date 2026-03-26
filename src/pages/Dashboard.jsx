@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useLanguage } from '../i18n/LanguageContext';
+import { AnnouncementBanner } from '../components/AnnouncementBanner';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 const heartRateData = [
@@ -46,10 +47,6 @@ const appointments = [
   { id: 1, doctor: 'Dr. Priya Sharma', specialty: 'General Physician', date: 'Mar 24, 2026', time: '10:30 AM', type: 'In-person', avatar: 'PS' },
   { id: 2, doctor: 'Dr. Arjun Mehta', specialty: 'Pulmonologist', date: 'Apr 2, 2026', time: '3:00 PM', type: 'Video Call', avatar: 'AM' },
 ];
-
-// aiRecommendations now built inside component using t
-
-
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -118,7 +115,6 @@ const OfflineBanner = ({ show, onDismiss }) => (
 const PatientDashboard = ({ user }) => {
   const { t, lang, changeLang, languages } = useLanguage();
   const [activeMeds, setActiveMeds] = useState(medications);
-  // Use language from context — no local state needed
   const aiRecommendations = [
     { icon: Droplets, title: t.dashboard.hydrationAlert,    desc: t.dashboard.hydrationDesc,    color: 'text-blue-500',     bg: 'bg-blue-50'       },
     { icon: Wind,     title: t.dashboard.breathingExercise, desc: t.dashboard.breathingDesc,    color: 'text-helixa-teal',  bg: 'bg-helixa-teal/5' },
@@ -150,6 +146,9 @@ const PatientDashboard = ({ user }) => {
 
   return (
     <div className="space-y-8">
+
+      {/* ── Announcement Banner — shown at the very top ── */}
+      <AnnouncementBanner />
 
       {/* ── Offline Banner ── */}
       <OfflineBanner show={showOffline} onDismiss={() => setShowOffline(false)} />
@@ -327,7 +326,6 @@ const PatientDashboard = ({ user }) => {
 
         {/* Medications */}
         <Card title={t.dashboard.medicationTracker} subtitle={t.dashboard.takenToday(takenCount, activeMeds.length)}>
-          {/* Progress bar */}
           <div className="mt-2 mb-4 h-2 bg-[var(--border-color)] rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-helixa-green rounded-full"
@@ -462,7 +460,6 @@ const PatientDashboard = ({ user }) => {
             </motion.div>
           ))}
 
-          {/* Book new appointment */}
           <motion.button
             whileHover={{ scale: 1.01 }}
             whileTap={{ scale: 0.99 }}
@@ -540,12 +537,7 @@ const PatientDashboard = ({ user }) => {
                       <button
                         key={l.code}
                         type="button"
-                        onClick={(e) => { e.stopPropagation(); setSelectedLang(l.code); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 transition-all ${
-                          selectedLang === l.code
-                            ? 'bg-helixa-green text-white border-helixa-green'
-                            : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-helixa-green hover:text-helixa-green'
-                        }`}
+                        className="px-3 py-1.5 rounded-full text-xs font-bold border-2 border-[var(--border-color)] text-[var(--text-secondary)] hover:border-helixa-green hover:text-helixa-green transition-all"
                       >
                         {l.label}
                       </button>

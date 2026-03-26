@@ -2,6 +2,7 @@
 // Real-time notifications from Firestore
 // Structure: notifications/{userId}/items/{notifId}
 // → { title, message, type, read, createdAt }
+// OFFLINE: last-fetched notifications are cached in localStorage per user
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -12,17 +13,17 @@ import { db } from '../utils/firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Bell, X, Check, Trash2, BellOff,
-  Activity, Calendar, MessageSquare, AlertTriangle, Info
+  Activity, Calendar, MessageSquare, AlertTriangle, Info, WifiOff
 } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const formatTime = (ts) => {
   if (!ts) return '';
-  const d   = ts.toDate ? ts.toDate() : new Date(ts);
+  const d   = ts.toDate ? ts.toDate() : new Date(typeof ts === 'number' ? ts : ts);
   const now = new Date();
   const diff = now - d;
-  if (diff < 60000)   return 'just now';
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 60000)    return 'just now';
+  if (diff < 3600000)  return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 };
@@ -33,6 +34,24 @@ const typeConfig = {
   alert:       { icon: AlertTriangle, color: 'text-red-500',      bg: 'bg-red-50'          },
   result:      { icon: Activity,      color: 'text-amber-500',    bg: 'bg-amber-50'        },
   info:        { icon: Info,          color: 'text-blue-500',     bg: 'bg-blue-50'         },
+};
+
+// ── Cache helpers ─────────────────────────────────────────────────────────────
+const cacheKey  = (userId) => `helixa_notifs_cache_${userId}`;
+
+const readCache = (userId) => {
+  try { return JSON.parse(localStorage.getItem(cacheKey(userId)) || '[]'); }
+  catch { return []; }
+};
+
+const writeCache = (userId, items) => {
+  // Serialise Timestamps to millis so they survive JSON round-trip
+  const safe = items.map(n => ({
+    ...n,
+    createdAt: n.createdAt?.toMillis?.() ?? n.createdAt ?? null,
+  }));
+  try { localStorage.setItem(cacheKey(userId), JSON.stringify(safe)); }
+  catch {}
 };
 
 // ── Hook: get unread notification count ───────────────────────────────────────
@@ -53,31 +72,58 @@ export const useNotificationCount = (userId) => {
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 export const NotificationsPanel = ({ user, onClose }) => {
-  const [notifs,  setNotifs]  = useState([]);
+  // Seed from cache so something shows instantly (even offline)
+  const [notifs,  setNotifs]  = useState(() => user?.id ? readCache(user.id) : []);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  // Track online/offline status
+  useEffect(() => {
+    const goOnline  = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online',  goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online',  goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
+
+    // If we already have cached data, don't show the spinner
+    if (readCache(user.id).length > 0) setLoading(false);
+
     const q = query(
       collection(db, 'notifications', user.id, 'items'),
       orderBy('createdAt', 'desc')
     );
     const unsub = onSnapshot(q, snap => {
-      setNotifs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      const fresh = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setNotifs(fresh);
+      writeCache(user.id, fresh); // keep cache warm
       setLoading(false);
     });
     return () => unsub();
   }, [user?.id]);
 
   const markRead = async (notifId) => {
+    if (isOffline) return; // can't write offline — silently skip
     await updateDoc(doc(db, 'notifications', user.id, 'items', notifId), { read: true });
   };
 
   const deleteNotif = async (notifId) => {
+    if (isOffline) return;
     await deleteDoc(doc(db, 'notifications', user.id, 'items', notifId));
+    // Optimistically remove from local cache too
+    const updated = notifs.filter(n => n.id !== notifId);
+    setNotifs(updated);
+    writeCache(user.id, updated);
   };
 
   const markAllRead = async () => {
+    if (isOffline) return;
     const batch = writeBatch(db);
     notifs.filter(n => !n.read).forEach(n => {
       batch.update(doc(db, 'notifications', user.id, 'items', n.id), { read: true });
@@ -86,11 +132,14 @@ export const NotificationsPanel = ({ user, onClose }) => {
   };
 
   const clearAll = async () => {
+    if (isOffline) return;
     const batch = writeBatch(db);
     notifs.forEach(n => {
       batch.delete(doc(db, 'notifications', user.id, 'items', n.id));
     });
     await batch.commit();
+    setNotifs([]);
+    writeCache(user.id, []);
   };
 
   const unreadCount = notifs.filter(n => !n.read).length;
@@ -106,7 +155,13 @@ export const NotificationsPanel = ({ user, onClose }) => {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {unreadCount > 0 && (
+          {/* Offline badge */}
+          {isOffline && (
+            <span className="flex items-center gap-1 text-[10px] font-black px-2 py-1 rounded-xl bg-amber-100 text-amber-700">
+              <WifiOff size={10} /> Cached
+            </span>
+          )}
+          {unreadCount > 0 && !isOffline && (
             <button
               onClick={markAllRead}
               className="text-xs font-black text-helixa-green hover:opacity-70 transition-opacity flex items-center gap-1"
@@ -114,7 +169,7 @@ export const NotificationsPanel = ({ user, onClose }) => {
               <Check size={12} /> Mark all read
             </button>
           )}
-          {notifs.length > 0 && (
+          {notifs.length > 0 && !isOffline && (
             <button
               onClick={clearAll}
               className="text-xs font-black text-helixa-alert hover:opacity-70 transition-opacity flex items-center gap-1"
@@ -125,9 +180,17 @@ export const NotificationsPanel = ({ user, onClose }) => {
         </div>
       </div>
 
+      {/* Offline notice strip */}
+      {isOffline && (
+        <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-xs font-bold text-amber-700 flex items-center gap-1.5">
+          <WifiOff size={12} />
+          You're offline — showing your last loaded notifications
+        </div>
+      )}
+
       {/* List */}
       <div className="flex-grow overflow-y-auto">
-        {loading ? (
+        {loading && notifs.length === 0 ? (
           <div className="flex items-center justify-center h-32">
             <div className="w-6 h-6 border-2 border-helixa-green/30 border-t-helixa-green rounded-full animate-spin" />
           </div>
@@ -169,7 +232,10 @@ export const NotificationsPanel = ({ user, onClose }) => {
                   </div>
 
                   {/* Content */}
-                  <div className="flex-grow min-w-0" onClick={() => !notif.read && markRead(notif.id)}>
+                  <div
+                    className="flex-grow min-w-0"
+                    onClick={() => !notif.read && markRead(notif.id)}
+                  >
                     <div className="flex items-start justify-between gap-2">
                       <p className={`text-sm leading-snug ${notif.read ? 'font-medium text-[var(--text-secondary)]' : 'font-black text-[var(--text-primary)]'}`}>
                         {notif.title}
@@ -186,13 +252,15 @@ export const NotificationsPanel = ({ user, onClose }) => {
                     </p>
                   </div>
 
-                  {/* Delete button */}
-                  <button
-                    onClick={() => deleteNotif(notif.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-helixa-alert flex-shrink-0"
-                  >
-                    <X size={14} className="text-[var(--text-secondary)]" />
-                  </button>
+                  {/* Delete button — hidden offline */}
+                  {!isOffline && (
+                    <button
+                      onClick={() => deleteNotif(notif.id)}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:text-helixa-alert flex-shrink-0"
+                    >
+                      <X size={14} className="text-[var(--text-secondary)]" />
+                    </button>
+                  )}
                 </motion.div>
               );
             })}
