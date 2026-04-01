@@ -10,7 +10,7 @@ coverage/
 service-account.json
 *service-account*.json
 *.serviceaccount.json
-
+serviceAccount.json
 # Env files
 .env
 .env.local
