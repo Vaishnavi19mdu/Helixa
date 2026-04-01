@@ -8,8 +8,8 @@ import { db } from './firebase';
 
 const QUEUE_KEY = 'helixa_offline_queue';
 
-const CLOUDINARY_CLOUD_NAME   = 'dpuwxctc1';
-const CLOUDINARY_UPLOAD_PRESET = 'helixa';
+const CLOUDINARY_CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 // ── Queue CRUD ────────────────────────────────────────────────────────────────
 export const getQueue = () => {
@@ -35,7 +35,6 @@ export const addToQueue = (type, data, priority = 'normal') => {
     timestamp: Date.now(),
     retries:   0,
   };
-  // urgent items go first
   if (priority === 'urgent') {
     queue.unshift(item);
   } else {
@@ -60,23 +59,17 @@ export const updateQueueItem = (id, updates) => {
 export const getQueueCount = () => getQueue().length;
 
 // ── Cloudinary audio upload helper ───────────────────────────────────────────
-// Converts a base64 data-URL to a hosted Cloudinary URL so Firestore can
-// store a lightweight URL rather than a large base64 blob.
 const uploadAudioToCloudinary = async (audioBase64) => {
   if (!audioBase64) return null;
 
-  // audioBase64 may already be a blob URL (objectURL) or a data-URL
   let blob;
   if (audioBase64.startsWith('data:')) {
-    // data-URL → Blob
     const res  = await fetch(audioBase64);
     blob       = await res.blob();
   } else if (audioBase64.startsWith('blob:')) {
-    // object URL → Blob
     const res  = await fetch(audioBase64);
     blob       = await res.blob();
   } else {
-    // raw base64 string — assume webm/ogg
     const bytes = atob(audioBase64);
     const arr   = new Uint8Array(bytes.length);
     for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
@@ -87,7 +80,7 @@ const uploadAudioToCloudinary = async (audioBase64) => {
   formData.append('file',           blob, 'voice.webm');
   formData.append('upload_preset',  CLOUDINARY_UPLOAD_PRESET);
   formData.append('folder',         'voice_messages');
-  formData.append('resource_type',  'video'); // Cloudinary uses "video" for audio files
+  formData.append('resource_type',  'video');
 
   const res  = await fetch(
     `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`,
@@ -100,7 +93,6 @@ const uploadAudioToCloudinary = async (audioBase64) => {
 
 // ── Sync handlers per type ────────────────────────────────────────────────────
 const syncHandlers = {
-  // ── Text / video messages ─────────────────────────────────────────────────
   message: async (data) => {
     await addDoc(collection(db, 'conversations', data.convId, 'messages'), {
       senderId:      data.senderId,
@@ -117,10 +109,6 @@ const syncHandlers = {
     });
   },
 
-  // ── Voice messages (base64 → Cloudinary → Firestore) ─────────────────────
-  // Voice messages are queued with their audio as a base64 / blob URL.
-  // On sync we upload to Cloudinary first to get a proper URL, then write
-  // to Firestore with that URL so other clients can stream the audio.
   voice: async (data) => {
     let audioUrl = data.audioBase64 || null;
 
@@ -129,7 +117,6 @@ const syncHandlers = {
         audioUrl = await uploadAudioToCloudinary(audioUrl);
       } catch (err) {
         console.warn('[offlineQueue] Cloudinary audio upload failed, storing base64 fallback:', err);
-        // Fall through — store whatever we have so the message isn't lost
       }
     }
 
@@ -138,7 +125,7 @@ const syncHandlers = {
       senderName:    data.senderName,
       text:          '🎤 Voice message',
       type:          'voice',
-      audioBase64:   audioUrl,          // now a Cloudinary URL (or raw fallback)
+      audioBase64:   audioUrl,
       audioDuration: data.audioDuration || null,
       createdAt:     serverTimestamp(),
       syncedAt:      serverTimestamp(),
@@ -146,7 +133,6 @@ const syncHandlers = {
     });
   },
 
-  // ── Symptom history ───────────────────────────────────────────────────────
   symptom: async (data) => {
     await addDoc(collection(db, 'users', data.userId, 'symptomHistory'), {
       symptoms:  data.symptoms,
@@ -176,7 +162,6 @@ export const syncQueue = async () => {
         synced++;
         window.dispatchEvent(new CustomEvent('helixa:item-synced', { detail: { id: item.id } }));
       } else {
-        // Unknown type — remove it so it doesn't block the queue forever
         console.warn(`[offlineQueue] No handler for type "${item.type}" — discarding.`);
         removeFromQueue(item.id);
       }

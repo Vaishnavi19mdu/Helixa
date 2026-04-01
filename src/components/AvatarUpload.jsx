@@ -3,8 +3,8 @@ import React, { useState, useRef } from 'react';
 import { Camera, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const CLOUDINARY_CLOUD_NAME = 'dpuwxctc1';   // 🔁 Replace with your Cloudinary cloud name
-const CLOUDINARY_UPLOAD_PRESET = 'helixa';    // 🔁 Replace with your unsigned upload preset
+const CLOUDINARY_CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 
 export const AvatarUpload = ({ currentAvatar, firstName, onUploadSuccess }) => {
   const [preview, setPreview]   = useState(currentAvatar || null);
