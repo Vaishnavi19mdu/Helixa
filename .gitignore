@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+# Firebase service account
+service-account.json
+*service-account*.json
+*.serviceaccount.json
+
+# Env files
+.env
+.env.local
+.env.production
